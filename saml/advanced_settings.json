@@ -1,0 +1,9 @@
+{
+  "security": {
+    "lowercase_urlencoding": true,
+    "wantAssertionsSigned": true,
+    "requestedAuthnContext": false,
+    "relaxDestinationValidation": true,
+    "allowRepeatAttributeName": true
+  }
+}

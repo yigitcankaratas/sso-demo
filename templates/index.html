@@ -1,0 +1,7 @@
+<h1>Hoşgeldin!</h1>
+{% if logged_in %}
+  <p>SSO ile giriş yapıldı.</p>
+  <a href="/logout">Çıkış Yap</a>
+{% else %}
+  <a href="/login">SSO ile Giriş Yap</a>
+{% endif %}
