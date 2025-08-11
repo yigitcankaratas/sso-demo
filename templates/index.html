@@ -1,7 +1,8 @@
 <h1>Hoşgeldin!</h1>
 {% if logged_in %}
+{{auth}}<br>Attributes: {{user_data}} <br>
   <p>SSO ile giriş yapıldı.</p>
-  <a href="/logout">Çıkış Yap</a>
+  <a href="/">Çıkış Yap</a>
 {% else %}
   <a href="/login">SSO ile Giriş Yap</a>
 {% endif %}

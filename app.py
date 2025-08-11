@@ -1,9 +1,10 @@
 import os
-from flask import Flask, request, redirect, make_response
+from flask import Flask, request, redirect, make_response, render_template, session
 from onelogin.saml2.auth import OneLogin_Saml2_Auth
 from onelogin.saml2.utils import OneLogin_Saml2_Utils
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)  # Rastgele bir key üretir
 
 def prepare_flask_request(req):
     url_data = req.url
@@ -24,7 +25,7 @@ def init_saml_auth(req):
 
 @app.route('/')
 def index():
-    return '<a href="/login">SSO ile Giriş Yap</a>'
+    return render_template("index.html", logged_in=('samlUserdata' in session))
 
 @app.route('/login')
 def login():
@@ -44,7 +45,7 @@ def acs():
         return "Kimlik doğrulama başarısız", 401
 
     user_data = auth.get_attributes()
-    return f"Hoş geldin {auth.get_nameid()}<br>Attributes: {user_data}"
+    return render_template("index.html", logged_in=True, user_data=user_data, auth=auth.get_nameid())
 
 @app.route('/metadata')
 def metadata():
@@ -57,6 +58,12 @@ def metadata():
     response = make_response(metadata_str, 200)
     response.headers['Content-Type'] = 'text/xml'
     return response
+
+@app.route('/sls', methods=['Redirect'])
+def sls():
+    session.clear()
+    return render_template("index.html", logged_in=False)
+
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
