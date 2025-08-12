@@ -6,7 +6,7 @@ from onelogin.saml2.utils import OneLogin_Saml2_Utils
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Rastgele bir key üretir
 
-def prepare_flask_request(req):
+def prepare_flask_request(req): # Flask isteğini SAML için uygun hale getirir
     url_data = req.url
     return {
         'https': 'on' if req.scheme == 'https' else 'off',
@@ -17,7 +17,7 @@ def prepare_flask_request(req):
         'post_data': req.form.copy()
     }
 
-def init_saml_auth(req):
+def init_saml_auth(req): # SAML oturumunu başlatır
     return OneLogin_Saml2_Auth(
         prepare_flask_request(req),
         custom_base_path=os.path.join(os.path.dirname(__file__), 'saml')
@@ -44,11 +44,19 @@ def acs():
     if not auth.is_authenticated():
         return "Kimlik doğrulama başarısız", 401
 
-    user_data = auth.get_attributes()
-    return render_template("index.html", logged_in=True, user_data=user_data, auth=auth.get_nameid())
+    session['samlUserdata'] = auth.get_attributes()
+    session['samlNameId'] = auth.get_nameid()
+    session['samlSessionIndex'] = auth.get_session_index()
+
+    return render_template(
+        "index.html",
+        logged_in=True,
+        user_data=session['samlUserdata'],
+        auth=session['samlNameId']
+    )
 
 @app.route('/metadata')
-def metadata():
+def metadata(): 
     auth = init_saml_auth(request)
     settings = auth.get_settings()
     metadata_str = settings.get_sp_metadata()
@@ -59,10 +67,32 @@ def metadata():
     response.headers['Content-Type'] = 'text/xml'
     return response
 
-@app.route('/sls', methods=['Redirect'])
+@app.route('/logout')
+def logout():
+    auth = init_saml_auth(request)
+    name_id = session.get('samlNameId')
+    session_index = session.get('samlSessionIndex')
+    return redirect(auth.logout(
+        name_id=name_id,
+        session_index=session_index,
+        return_to="http://localhost:5000/"
+    ))
+
+@app.route('/sls', methods=['GET', 'POST'])
 def sls():
-    session.clear()
-    return render_template("index.html", logged_in=False)
+    if 'SAMLRequest' not in request.args and 'SAMLResponse' not in request.args:
+        # Direkt girilmiş, SAML isteği yok
+        session.clear()
+        return redirect('/')
+    
+    auth = init_saml_auth(request)
+    url = auth.process_slo(delete_session_cb=lambda: session.clear())
+    errors = auth.get_errors()
+
+    if errors:
+        return f"Hata: {errors}", 400
+
+    return redirect(url or '/')
 
 
 if __name__ == '__main__':
